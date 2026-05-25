@@ -178,8 +178,30 @@ func NewServer(cfg *config.ConfigStore, network, address string) *Server {
 	return s
 }
 
+// Handler returns the HTTP handler used by the server. Useful for
+// composing the v1 API routes inside a larger HTTP mux (e.g. the web
+// frontend).
+func (s *Server) Handler() http.Handler {
+	return s.h.Handler
+}
+
+// Backend returns the backend instance powering the server. Useful for
+// composing layers (e.g. the web frontend) that need direct access to
+// workspace and agent state.
+func (s *Server) Backend() *backend.Backend {
+	return s.backend
+}
+
 // Serve accepts incoming connections on the listener.
 func (s *Server) Serve(ln net.Listener) error {
+	return s.h.Serve(ln)
+}
+
+// ServeHandler runs the HTTP server with a custom handler. Used when an
+// external layer (e.g. the web frontend) wraps the v1 routes with
+// additional handlers and middleware.
+func (s *Server) ServeHandler(ln net.Listener, h http.Handler) error {
+	s.h.Handler = h
 	return s.h.Serve(ln)
 }
 

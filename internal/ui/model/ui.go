@@ -3076,19 +3076,20 @@ func mimeOf(content []byte) string {
 }
 
 var readyPlaceholders = [...]string{
-	"Ready!",
-	"Ready...",
-	"Ready?",
-	"Ready for instructions",
+	"准备就绪！",
+	"准备就绪...",
+	"准备就绪？",
+	"等待你的指令",
+	"想做点什么？",
 }
 
 var workingPlaceholders = [...]string{
-	"Working!",
-	"Working...",
-	"Brrrrr...",
-	"Prrrrrrrr...",
-	"Processing...",
-	"Thinking...",
+	"处理中！",
+	"处理中...",
+	"思考中...",
+	"努力工作中...",
+	"运转中...",
+	"嗯...让我想想...",
 }
 
 // randomizePlaceholders selects random placeholder text for the textarea's

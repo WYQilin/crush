@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Crush Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body,
+      #app {
+        height: 100%;
+      }
+      body {
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .aurora {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .aurora::before,
+      .aurora::after {
+        content: '';
+        position: absolute;
+        width: 55vmax;
+        height: 55vmax;
+        border-radius: 50%;
+        filter: blur(140px);
+        opacity: 0.35;
+      }
+      .aurora::before {
+        background: radial-gradient(circle, #6366f1 0%, transparent 60%);
+        top: -25vmax;
+        left: -15vmax;
+      }
+      .aurora::after {
+        background: radial-gradient(circle, #ec4899 0%, transparent 60%);
+        bottom: -30vmax;
+        right: -20vmax;
+      }
+      .glass {
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(18px) saturate(140%);
+        -webkit-backdrop-filter: blur(18px) saturate(140%);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      .panel {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(14px) saturate(140%);
+        -webkit-backdrop-filter: blur(14px) saturate(140%);
+      }
+      .scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .scroll::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.2);
+        border-radius: 999px;
+      }
+      .scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.35);
+      }
+      .scroll {
+        scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+        scrollbar-width: thin;
+      }
+      .msg pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .bubble-user {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        box-shadow: 0 8px 24px -10px rgba(99, 102, 241, 0.6);
+      }
+      .bubble-assistant {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+      }
+      .bubble-tool {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px dashed rgba(148, 163, 184, 0.2);
+      }
+      .input-shell {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      }
+      .input-shell:focus-within {
+        border-color: #6366f1;
+        background: rgba(15, 23, 42, 0.85);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+      }
+      textarea#input {
+        background: transparent;
+        outline: none;
+        resize: none;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        box-shadow: 0 8px 22px -10px rgba(139, 92, 246, 0.7);
+        transition: transform 0.1s, box-shadow 0.2s, opacity 0.2s;
+      }
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 26px -10px rgba(139, 92, 246, 0.8);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-stop {
+        background: linear-gradient(135deg, #f43f5e, #e11d48);
+        box-shadow: 0 8px 22px -10px rgba(244, 63, 94, 0.7);
+      }
+      .btn-stop:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+      .btn-ghost {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .btn-ghost:hover {
+        background: rgba(51, 65, 85, 0.7);
+        border-color: rgba(148, 163, 184, 0.3);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .dot-on {
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+      }
+      .dot-off {
+        background: #f59e0b;
+        box-shadow: 0 0 8px #f59e0b;
+      }
+      .dot-pulse::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        animation: pulse 1.4s ease-out infinite;
+        background: inherit;
+        opacity: 0.7;
+      }
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.7; }
+        100% { transform: scale(2.6); opacity: 0; }
+      }
+      .typing span {
+        width: 6px;
+        height: 6px;
+        margin: 0 1px;
+        border-radius: 50%;
+        background: #94a3b8;
+        display: inline-block;
+        animation: typing 1.2s infinite ease-in-out;
+      }
+      .typing span:nth-child(2) { animation-delay: 0.15s; }
+      .typing span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+        30% { transform: translateY(-4px); opacity: 1; }
+      }
+      .logo {
+        background: linear-gradient(135deg, #818cf8, #f472b6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      select {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: #e2e8f0;
+        outline: none;
+      }
+      select:focus {
+        border-color: #6366f1;
+      }
+      .fade-in {
+        animation: fadeIn 0.25s ease;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-slate-100">
+    <div class="aurora"></div>
+
+    <div id="app" class="relative z-10 flex h-full">
+      <!-- LEFT: chat -->
+      <aside class="flex w-1/2 min-w-[420px] flex-col border-r border-white/5">
+        <header
+          class="panel flex items-center justify-between gap-3 border-b border-white/5 px-5 py-3"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-pink-500 text-base shadow-lg shadow-indigo-500/30"
+            >
+              ✦
+            </div>
+            <div class="leading-tight">
+              <div class="logo text-base font-semibold tracking-tight">
+                AI Coding
+              </div>
+              <div
+                id="status"
+                class="flex items-center gap-1.5 text-xs text-slate-400"
+              >
+                <span class="relative inline-block">
+                  <span id="status-dot" class="dot dot-off"></span>
+                </span>
+                <span id="status-text">connecting…</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              id="new-session"
+              class="btn-ghost rounded-lg px-3 py-1.5 text-xs text-slate-300"
+              title="新建会话"
+            >
+              新会话
+            </button>
+            <button
+              id="logout"
+              class="btn-ghost rounded-lg px-3 py-1.5 text-xs text-slate-300"
+              title="退出登录"
+            >
+              退出
+            </button>
+          </div>
+        </header>
+
+        <div
+          id="messages"
+          class="scroll flex-1 space-y-4 overflow-y-auto px-5 py-6"
+        ></div>
+
+        <form
+          id="input-form"
+          class="px-5 pb-5 pt-2"
+        >
+          <div class="input-shell rounded-2xl p-2">
+            <textarea
+              id="input"
+              rows="2"
+              class="block w-full resize-none px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-50"
+              placeholder="让 agent 帮你生成一个网页... (Enter 发送 · Shift+Enter 换行)"
+            ></textarea>
+            <div class="mt-1 flex items-center justify-between gap-2 px-2">
+              <div
+                id="hint"
+                class="text-[11px] text-slate-500"
+              >
+                提示：尝试「做一个落地页，主题是樱花季」
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  id="stop-btn"
+                  type="button"
+                  class="btn-stop hidden inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium text-white"
+                  title="停止当前任务"
+                >
+                  <svg
+                    class="h-3.5 w-3.5"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                  停止
+                </button>
+                <button
+                  id="send-btn"
+                  type="submit"
+                  class="btn-primary inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold text-white"
+                >
+                  发送
+                  <svg
+                    class="h-3.5 w-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </aside>
+
+      <!-- RIGHT: pages list + preview -->
+      <section class="flex w-1/2 flex-col">
+        <header
+          class="panel flex items-center gap-2 border-b border-white/5 px-5 py-3 text-sm"
+        >
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
+            <span>预览</span>
+          </div>
+          <select
+            id="page-select"
+            class="ml-1 flex-1 rounded-lg px-2.5 py-1.5 text-sm"
+          >
+            <option value="">(暂无页面)</option>
+          </select>
+          <button
+            id="refresh-pages"
+            class="btn-ghost rounded-lg px-2.5 py-1.5 text-xs"
+            title="刷新"
+          >
+            ↻
+          </button>
+          <a
+            id="open-page"
+            target="_blank"
+            class="btn-ghost rounded-lg px-2.5 py-1.5 text-xs"
+            title="新窗口打开"
+            >↗</a
+          >
+        </header>
+        <div class="flex-1 p-3">
+          <iframe
+            id="preview"
+            class="h-full w-full rounded-xl border border-white/5 bg-white shadow-2xl shadow-black/40"
+            src="about:blank"
+          ></iframe>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const messagesEl = $('messages');
+      const statusText = $('status-text');
+      const statusDot = $('status-dot');
+      const pageSelect = $('page-select');
+      const preview = $('preview');
+      const openPage = $('open-page');
+
+      let workspaceID = null;
+      let sessionID = null;
+      let busy = false;
+      let submitting = false; // re-entrancy guard for the POST itself.
+      const msgState = {}; // messageID -> {el, lenRead, typing}
+
+      const sendBtn = $('send-btn');
+      const stopBtn = $('stop-btn');
+      const inputEl = $('input');
+
+      function setBusy(b) {
+        busy = b;
+        sendBtn.disabled = b;
+        inputEl.disabled = b;
+        if (b) {
+          stopBtn.classList.remove('hidden');
+          sendBtn.classList.add('hidden');
+        } else {
+          stopBtn.classList.add('hidden');
+          sendBtn.classList.remove('hidden');
+          submitting = false;
+          inputEl.focus();
+        }
+      }
+
+      function setStatus(s, ok) {
+        statusText.textContent = s;
+        statusDot.className = 'dot ' + (ok ? 'dot-on' : 'dot-off');
+      }
+
+      function addBubble(role) {
+        const wrap = document.createElement('div');
+        wrap.className =
+          'msg fade-in flex ' +
+          (role === 'user' ? 'justify-end' : 'justify-start');
+        const inner = document.createElement('div');
+        if (role === 'user') {
+          inner.className =
+            'bubble-user max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm leading-relaxed text-white';
+        } else if (role === 'assistant') {
+          inner.className =
+            'bubble-assistant max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-relaxed text-slate-100';
+        } else {
+          inner.className =
+            'mx-auto rounded-full bg-slate-800/70 px-3 py-1 text-xs text-slate-400';
+        }
+        wrap.appendChild(inner);
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+        return inner;
+      }
+
+      function appendMessage(role) {
+        return addBubble(role);
+      }
+
+      function appendTool(name, input) {
+        const wrap = document.createElement('div');
+        wrap.className = 'msg fade-in flex justify-start';
+        const inner = document.createElement('div');
+        inner.className =
+          'bubble-tool max-w-[85%] rounded-xl px-3 py-2 text-xs font-mono text-slate-300';
+        wrap.appendChild(inner);
+        messagesEl.appendChild(wrap);
+        renderToolBubble(inner, name, input);
+        scrollToBottom();
+        return inner;
+      }
+
+      function renderToolBubble(el, name, input) {
+        el.innerHTML =
+          `<span class="mr-1 text-indigo-400">⚙</span>` +
+          `<span class="font-semibold text-slate-200">${escapeHtml(
+            name || '...',
+          )}</span>` +
+          (input
+            ? ` <span class="text-slate-500">${escapeHtml(
+                truncate(input, 140),
+              )}</span>`
+            : '');
+      }
+
+      function escapeHtml(s) {
+        return String(s || '').replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;',
+            })[c],
+        );
+      }
+
+      function scrollToBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function truncate(s, n) {
+        s = String(s || '');
+        return s.length > n ? s.slice(0, n) + '…' : s;
+      }
+
+      // Server-injected preamble markers — must match
+      // internal/web/web.go pagesPreambleStart/End.
+      const PREAMBLE_RE =
+        /<!--__crush_web_preamble__-->[\s\S]*?<!--\/__crush_web_preamble__-->\s*/;
+
+      function stripPreamble(s) {
+        return String(s || '').replace(PREAMBLE_RE, '');
+      }
+
+      function partsToText(parts) {
+        let text = '';
+        for (const p of parts || []) {
+          if (p && p.type === 'text') text += (p.data && p.data.text) || '';
+        }
+        return stripPreamble(text);
+      }
+
+      function showTyping() {
+        if ($('typing-indicator')) return;
+        const wrap = document.createElement('div');
+        wrap.id = 'typing-indicator';
+        wrap.className = 'msg fade-in flex justify-start';
+        wrap.innerHTML =
+          '<div class="bubble-assistant rounded-2xl rounded-bl-sm px-4 py-3">' +
+          '<div class="typing"><span></span><span></span><span></span></div>' +
+          '</div>';
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+      }
+
+      function hideTyping() {
+        const el = $('typing-indicator');
+        if (el) el.remove();
+      }
+
+      function renderMessage(msg) {
+        if (msg.session_id !== sessionID) return;
+        if (msg.role === 'user') return;
+        if (msg.role !== 'assistant') return;
+
+        let st = msgState[msg.id];
+        if (!st) {
+          st = { el: null, lenRead: 0 };
+          msgState[msg.id] = st;
+        }
+
+        let text = '';
+        let terminal = false;
+        for (const p of msg.parts || []) {
+          const d = (p && p.data) || {};
+          switch (p && p.type) {
+            case 'text':
+              text += d.text || '';
+              break;
+            case 'reasoning':
+              break;
+            case 'tool_call': {
+              const key = 'tc_' + d.id;
+              if (!st[key]) {
+                st[key] = appendTool(d.name, d.input);
+              } else {
+                renderToolBubble(st[key], d.name, d.input);
+              }
+              break;
+            }
+            case 'tool_result':
+              break;
+            case 'finish':
+              if (d.reason === 'error' && d.message) {
+                text += `\n\n[错误: ${d.message}]`;
+              } else if (d.reason === 'max_tokens') {
+                text +=
+                  '\n\n⚠️ 已达到模型单次输出上限 (max_tokens)。' +
+                  '若仍未完成，请提示「继续」或在 crush.json 中调高 max_tokens。';
+              } else if (d.reason === 'canceled') {
+                text += '\n\n⏹ 已取消';
+              }
+              if (isTerminalFinishReason(d.reason)) {
+                terminal = true;
+              }
+              break;
+          }
+        }
+        if (text) {
+          hideTyping();
+          if (!st.el) st.el = appendMessage('assistant');
+          st.el.textContent = text;
+          scrollToBottom();
+        }
+        if (terminal && busy) {
+          hideTyping();
+          setBusy(false);
+        }
+      }
+
+      async function api(path, opts = {}) {
+        opts.headers = Object.assign(
+          { 'Content-Type': 'application/json' },
+          opts.headers || {},
+        );
+        const r = await fetch(path, opts);
+        if (r.status === 401) {
+          location.href = '/login?next=' + encodeURIComponent(location.pathname);
+          throw new Error('unauthorized');
+        }
+        if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+        const ct = r.headers.get('content-type') || '';
+        return ct.includes('json') ? r.json() : r.text();
+      }
+
+      async function refreshPages() {
+        const list = await api('/api/pages');
+        const cur = pageSelect.value;
+        pageSelect.innerHTML = '';
+        if (!list.length) {
+          pageSelect.innerHTML = '<option value="">(暂无页面)</option>';
+          preview.src = 'about:blank';
+          openPage.href = '#';
+          return;
+        }
+        for (const p of list) {
+          const opt = document.createElement('option');
+          opt.value = p;
+          opt.textContent = p;
+          pageSelect.appendChild(opt);
+        }
+        pageSelect.value = list.includes(cur) ? cur : list[list.length - 1];
+        loadPreview();
+      }
+
+      function loadPreview() {
+        const v = pageSelect.value;
+        if (!v) {
+          preview.src = 'about:blank';
+          openPage.href = '#';
+          return;
+        }
+        const url = `/preview/${encodeURIComponent(v)}/`;
+        preview.src = url + '?_=' + Date.now();
+        openPage.href = url;
+      }
+
+      pageSelect.addEventListener('change', loadPreview);
+      $('refresh-pages').addEventListener('click', refreshPages);
+
+      $('logout').addEventListener('click', async () => {
+        try {
+          await fetch('/logout', { method: 'POST' });
+        } catch {}
+        location.href = '/login';
+      });
+
+      $('new-session').addEventListener('click', async () => {
+        if (!workspaceID) return;
+        if (busy) return;
+        try {
+          const s = await api(`/v1/workspaces/${workspaceID}/sessions`, {
+            method: 'POST',
+            body: JSON.stringify({ title: 'web' }),
+          });
+          sessionID = s.id;
+          messagesEl.innerHTML = '';
+          for (const k of Object.keys(msgState)) delete msgState[k];
+          appendMessage('system').textContent = '已开启新会话';
+        } catch (err) {
+          appendMessage('system').textContent = '新会话失败: ' + err.message;
+        }
+      });
+
+      $('input-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (busy || submitting) return;
+        const text = inputEl.value.trim();
+        if (!text || !sessionID) return;
+        submitting = true;
+        setBusy(true);
+        inputEl.value = '';
+        appendMessage('user').textContent = text;
+        showTyping();
+        try {
+          await api(`/v1/workspaces/${workspaceID}/agent`, {
+            method: 'POST',
+            body: JSON.stringify({ session_id: sessionID, prompt: text }),
+          });
+          // Stay busy until the server signals turn end via SSE.
+        } catch (err) {
+          hideTyping();
+          appendMessage('system').textContent = '发送失败: ' + err.message;
+          setBusy(false);
+        }
+      });
+
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (busy || submitting) return;
+          $('input-form').dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+      });
+
+      stopBtn.addEventListener('click', async () => {
+        if (!sessionID) return;
+        stopBtn.disabled = true;
+        try {
+          await api(
+            `/v1/workspaces/${workspaceID}/agent/sessions/${sessionID}/cancel`,
+            { method: 'POST' },
+          );
+        } catch (err) {
+          appendMessage('system').textContent = '停止失败: ' + err.message;
+        } finally {
+          stopBtn.disabled = false;
+          hideTyping();
+          setBusy(false);
+        }
+      });
+
+      function isTerminalFinishReason(reason) {
+        return (
+          reason &&
+          reason !== 'tool_use' &&
+          reason !== 'unknown' &&
+          reason !== ''
+        );
+      }
+
+      function subscribeEvents() {
+        const es = new EventSource(`/v1/workspaces/${workspaceID}/events`);
+        es.onopen = () => setStatus('已连接', true);
+        es.onerror = () => setStatus('断开重连中…', false);
+        es.onmessage = (ev) => {
+          if (!ev.data) return;
+          let payload;
+          try {
+            payload = JSON.parse(ev.data);
+          } catch {
+            return;
+          }
+          const inner = payload.payload;
+          if (!inner) return;
+          switch (payload.type) {
+            case 'message':
+              renderMessage(inner.payload);
+              break;
+            case 'file': {
+              refreshPages();
+              break;
+            }
+            case 'agent_event': {
+              const ag = inner.payload || {};
+              if (ag.type === 'error' || ag.type === 'response') {
+                if (busy) {
+                  hideTyping();
+                  setBusy(false);
+                }
+                refreshPages();
+              }
+              break;
+            }
+          }
+        };
+      }
+
+      async function bootstrap() {
+        setStatus('启动中…', false);
+        const info = await api('/api/info');
+        workspaceID = info.workspace_id;
+
+        try {
+          await api(`/v1/workspaces/${workspaceID}/agent/init`, {
+            method: 'POST',
+          });
+        } catch (err) {
+          setStatus('agent 初始化失败: ' + err.message, false);
+          throw err;
+        }
+
+        let sessions = [];
+        try {
+          sessions = await api(`/v1/workspaces/${workspaceID}/sessions`);
+        } catch {}
+        const def = (sessions || []).find((s) => !s.parent_session_id);
+        if (def) {
+          sessionID = def.id;
+        } else {
+          const s = await api(`/v1/workspaces/${workspaceID}/sessions`, {
+            method: 'POST',
+            body: JSON.stringify({ title: 'web' }),
+          });
+          sessionID = s.id;
+        }
+        try {
+          const msgs = await api(
+            `/v1/workspaces/${workspaceID}/sessions/${sessionID}/messages`,
+          );
+          for (const m of msgs || []) {
+            if (m.role === 'user') {
+              const txt = partsToText(m.parts);
+              if (txt) appendMessage('user').textContent = txt;
+            } else {
+              renderMessage(m);
+            }
+          }
+        } catch {}
+        await refreshPages();
+        subscribeEvents();
+      }
+
+      bootstrap().catch((e) => {
+        setStatus('初始化失败: ' + e.message, false);
+      });
+    </script>
+  </body>
+</html>

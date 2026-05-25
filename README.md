@@ -226,6 +226,53 @@ Crush’s default model listing is managed in [Catwalk](https://github.com/charm
 
 <a href="https://github.com/charmbracelet/catwalk"><img width="174" height="174" alt="Catwalk Badge" src="https://github.com/user-attachments/assets/95b49515-fe82-4409-b10d-5beb0873787d" /></a>
 
+## Web UI (单用户远程部署)
+
+除了终端 TUI，Crush 还提供一个轻量的浏览器前端，适合在远程 VPS 上自部署后通过浏览器访问。该模式专为**个人单用户**场景设计：聊天 + 简单单页面生成与预览，不面向多用户协作。
+
+### 启动
+
+```bash
+# 设置 HTTP Basic Auth 密码（也可以用 --password 直接传）
+export CRUSH_WEB_PASSWORD='your-strong-password'
+
+# 在含 crush.json 的工作区根目录下启动；--pages-dir 仅用作预览根目录
+crush web --addr :8080 --pages-dir ./pages --user crush
+```
+
+启动后浏览器打开 `http://<host>:8080/`，登录用户名/密码即可进入聊天界面。Web 模式会以当前 `--workspace-dir`（默认 = 启动时的工作目录）为 agent 工作区，从这里加载 `crush.json` 中的 provider/model/agent 配置；agent 写入的产物建议放到 `--pages-dir` 子目录，前端会通过 `/preview/<page>/` 展示。
+
+### 命令行参数
+
+- `--addr`：监听地址，默认 `:8080`
+- `--workspace-dir`：工作区根目录，必须包含已配置 provider 的 `crush.json`；默认取启动时的当前目录
+- `--pages-dir`：暴露在 `/preview/` 下的预览根目录，**默认 `<workspace-dir>/pages`**（不存在会自动创建），即项目目录下的 `pages/` 子目录
+- `--user`：HTTP Basic Auth 用户名，默认 `crush`
+- `--password`：HTTP Basic Auth 密码；为空时读取环境变量 `CRUSH_WEB_PASSWORD`
+- `--no-auth`：关闭鉴权（**仅本地调试**，远程部署严禁开启）
+- `--require-permissions`：保留 Crush 的工具调用权限确认。当前 Web 前端**没有**权限弹窗 UI，开启后 agent 会卡在第一次写文件/执行命令时；默认关闭（YOLO 模式），所有工具调用自动放行，由前面的 Basic Auth 把关
+- `--debug`：开启调试日志（日志路径见 [Logging](#logging) 一节，文件位于 `web/crush.log`）
+
+### 配置
+
+Web 模式从 `--workspace-dir` 起按 Crush 标准规则查找 `crush.json`（见 [Configuration](#configuration)），未配置任何 provider 时会直接报错并拒绝启动。首次使用前请在工作区根目录放置一份带有 provider/model 的 `crush.json`（或在该目录内运行 `crush logs in` 等命令完成登录），无需为 Web 单独维护一份配置。
+
+### 路由概览
+
+- `/` 内嵌的聊天 SPA
+- `/v1/*` 复用 Crush 的 REST API（sessions、messages、SSE 事件流等）
+- `/preview/<page>/` 直接以静态资源方式预览 `pages-dir/<page>/` 下生成的页面
+- `/api/info`、`/api/pages` 给前端使用的轻量辅助接口
+
+所有路由都被 HTTP Basic Auth 包裹，浏览器登录一次后 iframe 预览也会自动带上鉴权。
+
+### 远程部署建议
+
+- **务必**通过 HTTPS（如 Caddy/Nginx 反代）暴露端口，不要把 `:8080` 直接挂公网
+- 使用强密码并避免在命令行明文传入，优先用 `CRUSH_WEB_PASSWORD`
+- 不要使用 `--no-auth`
+- `--workspace-dir` 会被 LLM 自由读写，建议放在专用目录而不是核心源码仓库；`--pages-dir` 通常作为该工作区下的子目录使用
+
 ## Configuration
 
 > [!TIP]
