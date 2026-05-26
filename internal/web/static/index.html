@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=1280, user-scalable=yes" />
     <title>Crush Web</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,6 +13,21 @@
       body,
       #app {
         height: 100%;
+      }
+      /* On mobile / touch devices the layout viewport is forced to
+         width=1280 above. Without a height cap the browser would render
+         a 1280x(device-aspect-scaled) document, producing a very tall
+         page that looks broken. Cap to a typical desktop window aspect
+         so the scaled view feels like a "PC window" instead. */
+      @media (pointer: coarse) {
+        html,
+        body,
+        #app {
+          max-height: 820px;
+        }
+        body {
+          overflow: hidden;
+        }
       }
       body {
         font-family:

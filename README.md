@@ -266,6 +266,44 @@ Web 模式从 `--workspace-dir` 起按 Crush 标准规则查找 `crush.json`（�
 
 所有路由都被 HTTP Basic Auth 包裹，浏览器登录一次后 iframe 预览也会自动带上鉴权。
 
+### 前端行为
+
+- **即时连接状态**：SSE 流在响应头返回时立即 flush，连接成功后右上角状态点立刻变绿；中间过 nginx/SLB 反代时也会带上 `X-Accel-Buffering: no` 防缓冲
+- **预览自动跟随**：`/api/pages` 按 mtime 倒序返回；当 agent 生成或修改页面（`file` / `agent_event=response` 事件触发）时，预览面板会自动切到本次最新生成的页面，无需手动刷新
+- **新会话重置预览**：点击「新会话」会清空消息列表与预览 iframe，下一轮生成完成后自动加载新页面
+- **手机自适应**：`<meta viewport>` 强制 1280px 等比缩放，整页按桌面布局展示并按屏宽缩小；触屏设备额外加 `max-height` 限制，避免页面被拉得过长产生「样式错乱」错觉
+
+### 远程部署
+
+仓库根目录附带两份开箱即用的部署模板：
+
+- [`nginx.conf`](./nginx.conf)：HTTPS 反代到 `127.0.0.1:8085`，按 location 分档调超时与缓冲（SSE/agent 长连接关 buffering 与 1h 读超时，静态资源短缓存，预览页面 `no-store`），含 upstream keepalive
+- [`ecosystem.config.js`](./ecosystem.config.js)：PM2 进程守护（`fork` 单实例、内存阈值重启、独立日志、优雅关闭超时给 SSE 留时间）
+
+最小化部署流程：
+
+```bash
+# 1) 构建二进制
+CGO_ENABLED=0 GOEXPERIMENT=greenteagc go build -o crush .
+
+# 2) PM2 守护
+pm2 start ecosystem.config.js
+pm2 save && pm2 startup    # 按提示执行 sudo 那一行
+
+# 3) Nginx 反代（先准备好域名 A 记录与证书）
+sudo cp nginx.conf /etc/nginx/conf.d/<your-domain>.conf
+# 编辑 ssl_certificate / ssl_certificate_key 两行为实际证书路径
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+如需要 Let's Encrypt 证书：
+
+```bash
+sudo mkdir -p /var/www/letsencrypt
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d <your-domain>
+# 证书路径：/etc/letsencrypt/live/<your-domain>/{fullchain,privkey}.pem
+```
+
 ### 远程部署建议
 
 - **务必**通过 HTTPS（如 Caddy/Nginx 反代）暴露端口，不要把 `:8080` 直接挂公网
