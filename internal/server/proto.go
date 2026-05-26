@@ -208,6 +208,13 @@ func (c *controllerV1) handleGetWorkspaceEvents(w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+
+	// Send an initial comment and flush so the client's EventSource fires
+	// onopen immediately, instead of waiting for the first real event.
+	fmt.Fprint(w, ": ok\n\n")
+	flusher.Flush()
 
 	for {
 		select {

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -220,7 +221,11 @@ func (s *Server) handlePages(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	out := []string{}
+	type pageEntry struct {
+		name    string
+		modTime time.Time
+	}
+	pages := make([]pageEntry, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -229,7 +234,25 @@ func (s *Server) handlePages(w http.ResponseWriter, _ *http.Request) {
 		if strings.HasPrefix(name, ".") {
 			continue
 		}
-		out = append(out, name)
+		mt := time.Time{}
+		if info, err := e.Info(); err == nil {
+			mt = info.ModTime()
+		}
+		// Prefer the directory's index.html mtime when present, since
+		// the directory itself may not be touched on file rewrites.
+		if fi, err := os.Stat(filepath.Join(s.opts.PagesDir, name, "index.html")); err == nil {
+			if t := fi.ModTime(); t.After(mt) {
+				mt = t
+			}
+		}
+		pages = append(pages, pageEntry{name: name, modTime: mt})
+	}
+	sort.SliceStable(pages, func(i, j int) bool {
+		return pages[i].modTime.After(pages[j].modTime)
+	})
+	out := make([]string, 0, len(pages))
+	for _, p := range pages {
+		out = append(out, p.name)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(out)

@@ -585,7 +585,8 @@
         return ct.includes('json') ? r.json() : r.text();
       }
 
-      async function refreshPages() {
+      async function refreshPages(opts) {
+        const preferLatest = !!(opts && opts.preferLatest);
         const list = await api('/api/pages');
         const cur = pageSelect.value;
         pageSelect.innerHTML = '';
@@ -601,7 +602,18 @@
           opt.textContent = p;
           pageSelect.appendChild(opt);
         }
-        pageSelect.value = list.includes(cur) ? cur : list[list.length - 1];
+        // Server returns pages sorted by modTime desc, so list[0] is the
+        // most recently changed page. Prefer it after generation events
+        // and after starting a new session (when cur was cleared).
+        let chosen;
+        if (preferLatest || !cur) {
+          chosen = list[0];
+        } else if (list.includes(cur)) {
+          chosen = cur;
+        } else {
+          chosen = list[0];
+        }
+        pageSelect.value = chosen;
         loadPreview();
       }
 
@@ -638,6 +650,11 @@
           sessionID = s.id;
           messagesEl.innerHTML = '';
           for (const k of Object.keys(msgState)) delete msgState[k];
+          // Reset preview so the next generation switches to its newly
+          // produced page instead of staying on the previous result.
+          pageSelect.value = '';
+          preview.src = 'about:blank';
+          openPage.href = '#';
           appendMessage('system').textContent = '已开启新会话';
         } catch (err) {
           appendMessage('system').textContent = '新会话失败: ' + err.message;
@@ -720,7 +737,7 @@
               renderMessage(inner.payload);
               break;
             case 'file': {
-              refreshPages();
+              refreshPages({ preferLatest: true });
               break;
             }
             case 'agent_event': {
@@ -730,7 +747,7 @@
                   hideTyping();
                   setBusy(false);
                 }
-                refreshPages();
+                refreshPages({ preferLatest: true });
               }
               break;
             }

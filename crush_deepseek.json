@@ -1,0 +1,77 @@
+{
+  "$schema": "https://charm.land/crush.json",
+  "providers": {
+    "deepseek": {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "type": "openai",
+      "base_url": "https://api.deepseek.com",
+      "api_key": "$DEEPSEEK_API_KEY",
+      "default_large_model_id": "deepseek-v4-pro",
+      "default_small_model_id": "deepseek-v4-flash",
+      "models": [
+        {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "context_window": 128000,
+          "default_max_tokens": 64000
+        },
+        {
+          "id": "deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "context_window": 128000,
+          "default_max_tokens": 64000
+        }
+      ]
+    }
+  },
+  "models": {
+    "large": {
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "max_tokens": 16384
+    },
+    "small": {
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "max_tokens": 8192
+    }
+  },
+  "lsp": {
+    "gopls": {
+      "options": {
+        "gofumpt": true,
+        "codelenses": {
+          "gc_details": true,
+          "generate": true,
+          "run_govulncheck": true,
+          "test": true,
+          "tidy": true,
+          "upgrade_dependency": true
+        },
+        "hints": {
+          "assignVariableTypes": true,
+          "compositeLiteralFields": true,
+          "compositeLiteralTypes": true,
+          "constantValues": true,
+          "functionTypeParameters": true,
+          "parameterNames": true,
+          "rangeVariableTypes": true
+        },
+        "analyses": {
+          "nilness": true,
+          "unusedparams": true,
+          "unusedvariable": true,
+          "unusedwrite": true,
+          "useany": true
+        },
+        "staticcheck": true,
+        "directoryFilters": [
+          "-.git",
+          "-node_modules"
+        ],
+        "semanticTokens": true
+      }
+    }
+  }
+}
